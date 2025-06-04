@@ -1,0 +1,473 @@
+
+	/* ===================================================================
+	   CSS CUSTOM PROPERTIES - Design System
+	   =================================================================== */
+	   :root {
+		/* Typography */
+		--font-family: 'Barlow' ,'Inter', sans-serif;
+		--font-size-xs: 11pt;
+		--font-size-sm: 13pt;
+		--font-size-base: 14pt;
+		--font-weight-normal: 400;
+		--font-weight-medium: 500;
+		--font-weight-semibold: 600;
+
+		/* Spacing System */
+		--space-xs: 4px;
+		--space-sm: 8px;
+		--space-md: 12px;
+		--space-lg: 16px;
+		--space-xl: 20px;
+		--space-xxl: 24px;
+
+		/* Border Radius */
+		--radius-sm: 4px;
+		--radius-md: 6px;
+		--radius-lg: 8px;
+
+		/* Transitions - Removed for minimal design */
+		/* --transition-fast: 0.15s ease-out; */
+		/* --transition-normal: 0.2s ease-out; */
+
+		/* Color Palette - Light Theme */
+		--color-background: #ffffff;
+		--color-surface: #f8f9fa;
+		--color-border: #e9ecef;
+		--color-text-primary: #212529;
+		--color-text-secondary: #6c757d;
+		--color-accent: #0D98D4;
+		--color-accent-hover: #0b7aa3;
+		--color-accent-light: #5BC8F5;
+	}
+
+	/* Dark Theme Color Overrides */
+	[data-theme="dark"] {
+		--color-background: #1a1a1a;
+		--color-surface: #2d2d2d;
+		--color-border: #404040;
+		--color-text-primary: #ffffff;
+		--color-text-secondary: #a6a6a6;
+		--color-accent: #5BC8F5;
+		--color-accent-hover: #4ab8e8;
+		--color-accent-light: #0D98D4;
+	}
+
+	/* ===================================================================
+	   BASE STYLES
+	   =================================================================== */
+	body {
+		font-family: var(--font-family);
+		font-size: var(--font-size-base);
+		font-weight: var(--font-weight-normal);
+		line-height: 1.5;
+		color: var(--color-text-primary);
+	}
+
+	/* ===================================================================
+	   TOOLBAR STYLES
+	   =================================================================== */
+	
+	/* Main Toolbar Container */
+	#potree_toolbar {
+		/* Positioning */
+		position: absolute;
+		z-index: 10000;
+		left: 50%;
+		top: var(--space-xl);
+		transform: translateX(-50%);
+		
+		/* Layout */
+		display: flex;
+		align-items: center;
+		gap: var(--space-xxl);
+		
+		/* Visual */
+		background: var(--color-background);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		
+		/* Spacing */
+		padding: var(--space-lg) var(--space-xxl);
+	}
+
+	/* Toolbar Sections */
+	.toolbar-section {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-sm);
+		position: relative;
+	}
+
+	/* Section Labels */
+	.toolbar-label {
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text-secondary);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		white-space: nowrap;
+		text-align: center;
+		margin-bottom: var(--space-xs);
+	}
+
+	/* Controls Container */
+	.toolbar-controls {
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+	}
+
+	/* Visual Separators */
+	.toolbar-separator {
+		width: 1px;
+		height: 50px;
+		background: var(--color-border);
+		opacity: 0.6;
+	}
+
+	/* ===================================================================
+	   CONTROL TOOLBAR (FLOATING)
+	   =================================================================== */
+	#potree_control_toolbar {
+		/* Positioning */
+		position: absolute;
+		z-index: 10000;
+		top: var(--space-xl);
+		right: var(--space-xl);
+		max-width: calc(100vw - 40px);
+		
+		/* Layout */
+		display: flex;
+		align-items: center;
+		gap: var(--space-sm);
+		flex-wrap: nowrap;
+		flex-shrink: 0;
+
+		
+		/* Visual */
+		background: var(--color-background);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		
+		/* Spacing */
+		padding: var(--space-md);
+	}
+
+	.control-btn {
+		/* Layout */
+		width: 36px;
+		height: 36px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		
+		/* Visual */
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		
+		/* Interaction */
+		cursor: pointer;
+		
+		/* Typography */
+		font-size: var(--font-size-sm);
+		user-select: none;
+	}
+
+	.control-btn:hover {
+		background: var(--color-accent);
+		border-color: var(--color-accent);
+		color: white;
+	}
+
+	/* Hamburger menu lines */
+	.hamburger {
+		width: 16px;
+		height: 12px;
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+	}
+
+	.hamburger-line {
+		width: 100%;
+		height: 2px;
+		background: currentColor;
+		border-radius: 1px;
+	}
+
+	/* ===================================================================
+	   ACTION BUTTONS
+	   =================================================================== */
+	.action-btn {
+		/* Layout */
+		width: 36px;
+		height: 36px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		
+		/* Visual */
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		
+		/* Interaction */
+		cursor: pointer;
+		position: relative;
+	}
+
+	.action-btn:hover {
+		background: var(--color-accent);
+		border-color: var(--color-accent);
+	}
+
+	.action-btn.active {
+		background: var(--color-accent);
+		border-color: var(--color-accent);
+		color: white;
+	}
+
+	/* Icon Styling */
+	.action-btn img {
+		width: 18px;
+		height: 18px;
+	}
+
+	/* Icon Color Handling */
+	.action-btn:hover img,
+	.action-btn.active img {
+		filter: brightness(0) invert(1);
+	}
+
+	/* Dark theme icon adjustments */
+	[data-theme="dark"] .action-btn img {
+		filter: brightness(0) invert(1);
+	}
+
+	[data-theme="dark"] .action-btn:hover img,
+	[data-theme="dark"] .action-btn.active img {
+		filter: brightness(1) invert(0);
+	}
+
+	/* ===================================================================
+	   GRADIENT BUTTONS
+	   =================================================================== */
+	.gradient-btn {
+		/* Layout */
+		width: 28px;
+		height: 28px;
+		
+		/* Visual */
+		border: 2px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+		
+		/* Interaction */
+		cursor: pointer;
+	}
+
+	.gradient-btn:hover {
+		border-color: var(--color-accent);
+	}
+
+	.gradient-btn.active {
+		border-color: var(--color-accent);
+		outline: 1px solid var(--color-accent);
+	}
+
+	.gradient-btn svg {
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
+
+	/* ===================================================================
+	   SELECT DROPDOWN
+	   =================================================================== */
+	.toolbar-select {
+		/* Layout */
+		min-width: 120px;
+		
+		/* Visual */
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		color: var(--color-text-primary);
+		
+		/* Typography */
+		font-family: inherit;
+		font-size: var(--font-size-sm);
+		
+		/* Spacing */
+		padding: var(--space-sm) var(--space-md);
+		
+		/* Interaction */
+		cursor: pointer;
+	}
+
+	.toolbar-select:hover {
+		border-color: var(--color-accent);
+	}
+
+	.toolbar-select:focus {
+		outline: none;
+		border-color: var(--color-accent);
+	}
+
+	/* ===================================================================
+	   SLIDER COMPONENT
+	   =================================================================== */
+	.slider-section {
+		display: flex;
+		align-items: center;
+		gap: var(--space-md);
+	}
+
+	/* Budget Display */
+	.budget-display {
+		/* Visual */
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-primary);
+		
+		/* Typography */
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
+		
+		/* Spacing */
+		padding: var(--space-xs) var(--space-sm);
+		min-width: 64px;
+		max-width: 96px;
+		text-align: center;
+	}
+
+	/* jQuery UI Slider Overrides */
+	.ui-slider {
+		background: var(--color-border) !important;
+		border: none !important;
+		border-radius: 10px !important;
+		height: 3px !important;
+		width: 100px !important;
+	}
+
+	.ui-slider .ui-slider-handle {
+		background: var(--color-accent) !important;
+		border: 2px solid white !important;
+		border-radius: 50% !important;
+		width: 14px !important;
+		height: 14px !important;
+		top: -5px !important;
+		cursor: pointer !important;
+	}
+
+	.ui-slider .ui-slider-handle:hover {
+		background: var(--color-accent-hover) !important;
+	}
+
+	.ui-slider .ui-slider-handle:focus {
+		outline: none !important;
+	}
+
+	/* ===================================================================
+	   TOOLTIPS
+	   =================================================================== */
+	.tooltip {
+		/* Positioning */
+		position: absolute;
+		bottom: -32px;
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 1000;
+		
+		/* Visual */
+		background: rgba(0, 0, 0, 0.9);
+		color: white;
+		border-radius: var(--radius-sm);
+		
+		/* Typography */
+		font-size: var(--font-size-xs);
+		white-space: nowrap;
+		
+		/* Spacing */
+		padding: var(--space-xs) var(--space-sm);
+		
+		/* Animation */
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	/* Show tooltip on hover */
+	.action-btn:hover .tooltip,
+	.gradient-btn:hover .tooltip {
+		opacity: 1;
+	}
+
+	/* ===================================================================
+	   RESPONSIVE DESIGN
+	   =================================================================== */
+	
+	/* Large screens - default layout */
+	@media (min-width: 1200px) {
+		#potree_toolbar {
+			gap: var(--space-xxl);
+		}
+	}
+
+	/* Medium screens - reduce gaps */
+	@media (max-width: 1199px) and (min-width: 768px) {
+		#potree_toolbar {
+			left: var(--space-lg);
+			right: var(--space-lg);
+			transform: none;
+			gap: var(--space-lg);
+		}
+		
+		#potree_control_toolbar {
+			right: var(--space-lg);
+		}
+	}
+
+	/* Small screens - stack sections */
+	@media (max-width: 767px) {
+		#potree_toolbar {
+			left: var(--space-sm);
+			right: var(--space-sm);
+			transform: none;
+			flex-direction: column;
+			gap: var(--space-lg);
+			padding: var(--space-lg);
+		}
+		
+		#potree_control_toolbar {
+			right: var(--space-sm);
+			top: calc(var(--space-xl) + 100px); /* Position below main toolbar with more spacing */
+		}
+		
+		.toolbar-separator {
+			width: 80px;
+			height: 1px;
+		}
+		
+		.toolbar-section {
+			justify-content: center;
+		}
+		
+		.toolbar-label {
+			min-width: auto;
+		}
+	}
+
+	/* ===================================================================
+	   ACCESSIBILITY
+	   =================================================================== */
+	
+	/* Focus styles for keyboard navigation */
+	.action-btn:focus,
+	.gradient-btn:focus {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 2px;
+	}

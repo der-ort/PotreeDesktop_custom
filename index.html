@@ -5,106 +5,322 @@
 	<meta name="description" content="">
 	<meta name="author" content="">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-	<title>Potree Viewer</title>
+	<title>smart & agile viewer</title>
 
+	<!-- External Dependencies -->
 	<link rel="stylesheet" type="text/css" href="./libs/potree/potree.css">
 	<link rel="stylesheet" type="text/css" href="./libs/jquery-ui/jquery-ui.min.css">
 	<link rel="stylesheet" type="text/css" href="./libs/openlayers3/ol.css">
 	<link rel="stylesheet" type="text/css" href="./libs/spectrum/spectrum.css">
 	<link rel="stylesheet" type="text/css" href="./libs/jstree/themes/mixed/style.css">
-	<link rel="stylesheet" type="text/css" href="./src/desktop.css">
-
+	<link rel="stylesheet" type="text/css" href="./src/toolbar_sma.css">
+	
+	<!-- Additional CSS for dropzone -->
 	<style>
+		.droproot {
+			position: absolute;
+			left: 0px;
+			right: 0px;
+			top: 0px;
+			bottom: 0px;
+			z-index: 1000;
+			background: rgba(0,0,0,0.7);
+			pointer-events: none;
+			opacity: 0;
+			display: none;
+		}
 
+		.droproot.dragover {
+			opacity: 1;
+			pointer-events: auto;
+			display: block;
+		}
+
+		.dropzone {
+			position: absolute;
+			left: 0px;
+			right: 0px;
+			top: 0px;
+			bottom: 0px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.middle {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			color: white;
+		}
+
+		.dropzone_title {
+			font-size: 24px;
+			font-weight: bold;
+			margin-bottom: 20px;
+		}
+
+		.dropzone_text {
+			font-size: 16px;
+			list-style: none;
+			padding: 0;
+		}
+
+		.dropzone_text li {
+			margin: 10px 0;
+		}
+
+		/* Pointcloud Selection Modal */
+		.pointcloud-modal {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.8);
+			display: none;
+			z-index: 10001;
+			align-items: center;
+			justify-content: center;
+		}
+
+		.pointcloud-modal.show {
+			display: flex;
+		}
+
+		.modal-content {
+			background: var(--color-background);
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-lg);
+			padding: 2rem;
+			max-width: 600px;
+			width: 90%;
+			max-height: 80vh;
+			overflow-y: auto;
+		}
+
+		.modal-header {
+			margin-bottom: 1.5rem;
+			text-align: center;
+		}
+
+		.modal-title {
+			font-size: 1.5rem;
+			font-weight: 600;
+			color: var(--color-text-primary);
+			margin: 0;
+		}
+
+		.pointcloud-list {
+			display: flex;
+			flex-direction: column;
+			gap: 1rem;
+		}
+
+		.pointcloud-item {
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-md);
+			padding: 1rem;
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+
+		.pointcloud-item:hover {
+			border-color: var(--color-accent);
+			background: var(--color-surface);
+		}
+
+		.pointcloud-item.selected {
+			border-color: var(--color-accent);
+			background: var(--color-accent-light);
+		}
+
+		.pointcloud-name {
+			font-size: 1.1rem;
+			font-weight: 600;
+			color: var(--color-text-primary);
+			margin-bottom: 0.5rem;
+		}
+
+		.pointcloud-metadata {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+			gap: 0.5rem;
+			font-size: 0.9rem;
+			color: var(--color-text-secondary);
+		}
+
+		.metadata-item {
+			display: flex;
+			justify-content: space-between;
+		}
+
+		.modal-actions {
+			margin-top: 1.5rem;
+			display: flex;
+			gap: 1rem;
+			justify-content: flex-end;
+		}
+
+		.modal-btn {
+			padding: 0.5rem 1rem;
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-md);
+			background: var(--color-surface);
+			color: var(--color-text-primary);
+			cursor: pointer;
+			font-family: inherit;
+		}
+
+		.modal-btn:hover {
+			border-color: var(--color-accent);
+		}
+
+		.modal-btn.primary {
+			background: var(--color-accent);
+			border-color: var(--color-accent);
+			color: white;
+		}
+
+		.modal-btn.primary:hover {
+			background: var(--color-accent-hover);
+		}
+
+		/* Control Toolbar - Bottom Left Position */
+		#potree_control_toolbar {
+			position: absolute;
+			z-index: 10000;
+			bottom: var(--space-xl);
+			left: var(--space-xl);
+			display: flex;
+			align-items: center;
+			gap: var(--space-sm);
+			background: var(--color-background);
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-lg);
+			padding: var(--space-md);
+			width: fit-content;
+			height: fit-content;
+		}
+
+		/* Pointcloud Selector Dropdown */
+		.pointcloud-selector {
+			position: relative;
+		}
+
+		.pointcloud-dropdown {
+			position: absolute;
+			bottom: 100%;
+			left: 0;
+			background: var(--color-background);
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-md);
+			min-width: 200px;
+			max-height: 300px;
+			overflow-y: auto;
+			display: none;
+			z-index: 10000;
+			margin-bottom: 4px;
+		}
+
+		.pointcloud-dropdown.show {
+			display: block;
+		}
+
+		.dropdown-item {
+			padding: 0.75rem;
+			cursor: pointer;
+			border-bottom: 1px solid var(--color-border);
+		}
+
+		.dropdown-item:last-child {
+			border-bottom: none;
+		}
+
+		.dropdown-item:hover {
+			background: var(--color-surface);
+		}
+
+		.dropdown-item.active {
+			background: var(--color-accent);
+			color: white;
+		}
+
+		.dropdown-item-name {
+			font-weight: 600;
+			margin-bottom: 0.25rem;
+		}
+
+		.dropdown-item-info {
+			font-size: 0.8rem;
+			color: var(--color-text-secondary);
+		}
+
+		.dropdown-item.active .dropdown-item-info {
+			color: rgba(255, 255, 255, 0.8);
+		}
 	</style>
+
 </head>
 
 <body>
-
+	<!-- Drag and Drop Zone -->
 	<span id="pointcloud_file_dropzone" class="droproot">
-		<span style="position:absolute; left: 0px; right: 0px; top: 0px; bottom: 0px" class="dropzone">
-			
+		<span class="dropzone">
 			<span class="middle">
-				<p class="dropzone_title">Convert and/or Load point clouds</p>
-
+				<p class="dropzone_title">Load point clouds</p>
 				<ul class="dropzone_text">
-					<li>Drop LAS/LAZ files to convert and load them.</li>
-					<li>Drop folders to convert and load all files inside.</li>
-					<li>Drop previously converted cloud.js, metadata.json or containing directy to load.</li>
+					<li>Drop folders to load all point cloud files inside.</li>
+					<li>Drop previously converted cloud.js, metadata.json or containing directory to load.</li>
 				</ul>
 			</span>
-
 		</span>
 	</span>
 
-	<span id="converter_panel" class="middle">
-
-		<div class="converter_panel_widget">
-			Target Directory: <br>
-			<span style="display: flex">
-				<input id="converter_panel_target_directory" type="textfield" style="flex-grow: 1">
-				<!-- <span style="width: 0.2em"></span>
-				<input id="converter_panel_pick_target_directory" type="button" value="..."> -->
-			</span>
-			<div id="converter_panel_target_directory_warning" style="color: red">
-				&nbsp;
+	<!-- Main Potree Container -->
+	<div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px; ">
+		<div id="potree_render_area">
+			<!-- Main Toolbar -->
+			<div id="potree_toolbar">
+				<!-- populated with function -->
 			</div>
-		</div>
-
-		<div class="converter_panel_widget">
-			Input Files:
-			<div id="converter_panel_files" class="converter_panel_list">
-				<div>file 1</div>
-				<div>file 2</div>
-				<div>file 3</div>
-				<div>file 4</div>
-				<div>file 5</div>
-				<div>file 6</div>
-				<div>file 7</div>
-				<div>file 8</div>
-			</div>
-		</div>
-
-		<br>
-
-		<div class="converter_panel_widget">
-			Choose a Converter:
-			<div class="selection_buttons">
-
-				<input type="radio" id="selection_converter_version_1_7" 
-					name="selection_converter_version" value="all">
-					<label for="selection_converter_version_1_7" class="left">
-					<span class="title">PotreeConverter 1.7</span>
-					<ul>
-						<li>Older version that generates 1 file per octree node.</li>
-						<li>Try of PotreeConverter 2.0 causes issues.</li>
-					</ul>
-				</label>
-
-				<input type="radio" id="selection_converter_version_2_0" 
-					name="selection_converter_version" value="false" checked>
-					<label for="selection_converter_version_2_0" class="right" >
-					<span class="title">PotreeConverter 2.0</span>
-					<ul>
-						<li>Complete rewrite that generates a total of 3 files instead of thousands to millions.</li>
-					</ul>
-				</label>
-
-			</div>
-		</div>
-
-		<p>
-			<span style="display: flex">
-				<span style="flex-grow: 1"></span>
-				<input type="button" value="Start Conversion" id="converter_panel_start"/>
-				<span style="width:1em"></span>
-				<input type="button" value="Cancel" id="converter_panel_cancel"/>
-			</span>
 			
-		</p>
+			<!-- Control Toolbar -->
+			<div id="potree_control_toolbar" style="display: none;">
+				<div class="pointcloud-selector">
+					<div class="control-btn" id="pointcloud-toggle" title="Select Pointcloud" style="display: none;">
+						📁
+					</div>
+					<div class="pointcloud-dropdown" id="pointcloud-dropdown">
+						<!-- Populated dynamically -->
+					</div>
+				</div>
+				<div class="control-btn" id="theme-toggle" title="Toggle Theme">
+					🌙
+				</div>
+			</div>
+		</div>
+	</div>
 
-	</span>
+	<!-- Pointcloud Selection Modal -->
+	<div class="pointcloud-modal" id="pointcloud-modal">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h2 class="modal-title">Select Point Cloud</h2>
+			</div>
+			<div class="pointcloud-list" id="pointcloud-list">
+				<!-- Populated dynamically -->
+			</div>
+			<div class="modal-actions">
+				<button class="modal-btn" id="modal-cancel">Cancel</button>
+				<button class="modal-btn primary" id="modal-load">Load</button>
+			</div>
+		</div>
+	</div>
 
+	<!-- JavaScript Dependencies -->
 	<script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
 
 	<script src="./libs/jquery/jquery-3.1.1.min.js"></script>
@@ -119,221 +335,873 @@
 	<script src="./libs/jstree/jstree.js"></script>
 	<script src="./libs/potree/potree.js"></script>
 	<script src="./libs/plasio/js/laslaz.js"></script>
+	<script src='./libs/sql.js/sql-wasm.js'></script>
+	<script src='./libs/geopackage/geopackage.js'></script>
 
-		<script>
-		let elSplatQuality = $("#converter_choice");
-		elSplatQuality.selectgroup({title: "Converter Choice"});
-
-		elSplatQuality.find("input").click( (e) => {
-			console.log(e.target.value);
-			// if(e.target.value === "standard"){
-			// 	this.viewer.useHQ = false;
-			// }else if(e.target.value === "hq"){
-			// 	this.viewer.useHQ = true;
-			// }
-		});
-	</script>
-	
-	<div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px; ">
-		<div id="potree_render_area"></div>
-		<div id="potree_sidebar_container"> </div>
-	</div>
-
-
-		<script type="module">
-
-		import {
-			loadDroppedPointcloud, 
-			createPlaceholder, 
-			convert_17, 
-			convert_20, 
-			doConversion,
-			dragEnter, dragOver, dragLeave, dropHandler,
+	<script type="module">
+		import * as THREE from "./libs/three.js/build/three.module.js";
+		import { 
+			showDropzones, 
+			hideDropzones, 
+			dragEnter, 
+			dragOver, 
+			dragLeave, 
+			dropHandler 
 		} from "./src/desktop.js";
+		import { loadPointCloudMetadata } from "./src/utils/sma_ParseMetadata.js";
 
-		{
-			// open links in the standard browser instead of electron
-			// see https://github.com/electron/electron/issues/1344
-			const shell = require('electron').shell;
-			$(document).on('click', 'a[href^="http"]', function(event) {
-				event.preventDefault();
-				shell.openExternal(this.href);
-			});
+		// Electron external link handler
+		if (typeof require !== 'undefined') {
+			try {
+				const shell = require('electron').shell;
+				$(document).on('click', 'a[href^="http"]', function(event) {
+					event.preventDefault();
+					shell.openExternal(this.href);
+				});
+			} catch (e) {
+				console.log('Not running in Electron environment');
+			}
 		}
 
+		// Set up drag and drop handlers using the existing desktop.js module
 		let elBody = document.body;
-
 		elBody.addEventListener("dragenter", dragEnter, false);
 		elBody.addEventListener("dragover", dragOver, false);
 		elBody.addEventListener("dragleave", dragLeave, false);
 		elBody.addEventListener("drop", dropHandler, false);
-	
-		let elRenderArea = document.getElementById("potree_render_area");
-		let viewerArgs = {
-			noDragAndDrop: true,
-		};
-		window.viewer = new Potree.Viewer(elRenderArea, viewerArgs);
+
+		// Initialize Potree Viewer
+		window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
 		
-		viewer.setEDLEnabled(true);
+		// Configure viewer settings
+		viewer.setEDLEnabled(false);
 		viewer.setFOV(60);
-		viewer.setPointBudget(3*1000*1000);
-		viewer.setMinNodeSize(0);
+		viewer.setPointBudget(3_000_000);
 		viewer.loadSettingsFromURL();
+		viewer.setBackground("black");
 		
-		viewer.setDescription("");
-		
+		// Load GUI components
 		viewer.loadGUI(() => {
-			viewer.setLanguage('en');
-			$("#menu_appearance").next().show();
+			viewer.setLanguage('de');
 			$("#menu_tools").next().show();
-			$("#menu_scene").next().show();
-			$("#menu_filters").next().show();
-			viewer.toggleSidebar();
-
-
-			// let section = $(`
-			// 	<h3 id="menu_meta" class="accordion-header ui-widget"><span>Prototyping</span></h3>
-			// 	<div class="accordion-content ui-widget pv-menu-list"></div>
-			// `);
-			// let content = section.last();
-			// content.html(`
-			// <div class="pv-menu-list">
-			// 	<input id="btnExportLaz" type="button" value="export selection to LAZ"/>
-			// </div>
-			// `);
-			// section.first().click(() => content.slideToggle());
-			// section.insertBefore($('#menu_appearance'));
-
-			// let button = $("#btnExportLaz");
-			// button.click( () => {
-
-			// 	const {normalize} = require("path");
-
-			// 	let pointclouds = viewer.scene.pointclouds; //[0].pcoGeometry.url
-			// 	//let cmdInput = pointclouds.map(p => normalize(`${p.pcoGeometry.url}/../`)).join( );
-			// 	let inputPaths = pointclouds.map(p => normalize(`${p.pcoGeometry.url}/../`));
-
-			// 	let volumes = viewer.scene.volumes;
-			// 	let matrices = volumes.map(v => v.matrix.elements);
-
-			// 	let cmdArea = "";
-
-			// 	for(let matrix of matrices){
-			// 		let cmd = `matrix(${matrix.join(", ")})`;
-
-			// 		cmdArea += `${cmd} `;
-			// 	}
-				
-			// 	let suggestedPath = normalize(viewer.scene.pointclouds[0].pcoGeometry.url + "/../../export.las");
-			// 	const dialog = require('electron').remote.dialog;
-			// 	const chosenPath = dialog.showSaveDialogSync(null, {
-			// 		title: "Chose Export Path",
-			// 		defaultPath: suggestedPath,
-			// 		buttonLabel: "Select",
-			// 		filters: [],
-			// 		properties: ["openDirectory ", "promptToCreate", "createDirectory"],
-			// 	});
-
-			// 	if(!chosenPath){
-			// 		return;
-			// 	}
-
-
-			// 	// let cmd = `${cmdInput} -o ${chosenPath} ${cmdArea}`;
-
-			// 	const { spawn } = require('child_process');
-
-			// 	let exe = './libs/CPotree/filter.exe';
-			// 	let parameters = [
-			// 		...inputPaths,
-			// 		"-o", chosenPath,
-			// 		"--area", cmdArea
-			// 	];
-			// 	console.log(parameters);
-
-			// 	const converter = spawn(exe, parameters);
-
-			// 	converter.stdout.on('data', (data) => {
-			// 		const string = new TextDecoder("utf-8").decode(data);
-
-			// 		console.log("stdout", string);
-			// 	});
-
-			// 	converter.stderr.on('data', (data) => {
-			// 		console.log("==");
-			// 		console.error(`stderr: ${data}`);
-			// 	});
-
-			// 	converter.on('close', (code) => {
-			// 		console.log(`child process exited with code ${code}`);
-			// 	});
-
-				
-
-			// });
-
+			
+			// Hide default Potree sidebar completely
+			const sidebar = document.getElementById('potree_sidebar_container');
+			if (sidebar) {
+				sidebar.style.display = 'none';
+			}
+			
+			// Hide any default sidebar toggle buttons
+			$('.sidebar-toggle, .potree-sidebar-toggle').hide();
 		});
 
-		// load a file from your disc or USB drive:
-		//Potree.loadPointCloud("C:/dev/workspaces/potree/develop/pointclouds/lion_takanawa/cloud.js", "Point Cloud Name", function(e){
+		// ===============================================
+		// POINTCLOUD MANAGEMENT
+		// ===============================================
 		
-		//Potree.loadPointCloud("http://5.9.65.151/mschuetz/potree/resources/pointclouds/archpro/heidentor/cloud.js", "Point Cloud Name", function(e){
-		//	viewer.scene.addPointCloud(e.pointcloud);
-		//	e.pointcloud.position.z = 0;
-		//	let material = e.pointcloud.material;
-		//	material.size = 1;
-		//	material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+		let availablePointclouds = [];
+		let currentPointcloud = null;
+		let selectedPointcloudIndex = null;
 
-		//	viewer.scene.view.position.set(13.856734292740617, -9.125174923658731, 14.563928417406354);
-		//	viewer.scene.view.lookAt(-3.5482630104475366, 2.728596783815762, 6.1406044783018725);
-		//});
+		/**
+		 * Scan the pointclouds folder for available pointclouds
+		 */
+		async function scanPointclouds() {
+			if (typeof require === 'undefined') {
+				console.log('File system access not available - running in browser mode');
+				return [];
+			}
+
+			try {
+				const fs = require("fs");
+				const path = require("path");
+				const pointcloudsDir = "./pointclouds";
+				
+				if (!fs.existsSync(pointcloudsDir)) {
+					console.log('Pointclouds directory not found');
+					return [];
+				}
+
+				const folders = fs.readdirSync(pointcloudsDir, { withFileTypes: true })
+					.filter(dirent => dirent.isDirectory())
+					.map(dirent => dirent.name);
+
+				const pointclouds = [];
+
+				for (const folder of folders) {
+					const metadataPath = path.join(pointcloudsDir, folder, "metadata.json");
+					if (fs.existsSync(metadataPath)) {
+						try {
+							const metadata = await loadPointCloudMetadata(metadataPath);
+							pointclouds.push({
+								name: folder,
+								path: metadataPath,
+								metadata: metadata
+							});
+						} catch (error) {
+							console.warn(`Failed to load metadata for ${folder}:`, error);
+						}
+					}
+				}
+
+				return pointclouds;
+			} catch (error) {
+				console.error('Error scanning pointclouds:', error);
+				return [];
+			}
+		}
+
+		/**
+		 * Load a specific pointcloud
+		 */
+		function loadPointcloud(pointcloudInfo) {
+			console.log('Loading pointcloud:', pointcloudInfo.name);
+			
+			// Clear existing pointclouds
+			const existingPointclouds = [...viewer.scene.pointclouds];
+			existingPointclouds.forEach(pc => {
+				viewer.scene.removePointCloud(pc);
+			});
+
+			// Load the new pointcloud
+			Potree.loadPointCloud(pointcloudInfo.path).then(e => {
+				let pointcloud = e.pointcloud;
+				let material = pointcloud.material;
+
+				pointcloud.name = pointcloudInfo.metadata.name;
+				material.size = 1;
+				material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+				material.shape = Potree.PointShape.CIRCLE;
+
+				// Apply metadata settings
+				if (pointcloudInfo.metadata.elevationRange) {
+					material.elevationRange = pointcloudInfo.metadata.elevationRange;
+				}
+
+				if (pointcloudInfo.metadata.optimalPointBudget) {
+					viewer.setPointBudget(pointcloudInfo.metadata.optimalPointBudget);
+				}
+
+				// Set RGB as default attribute
+				let hasRGBA = pointcloud.getAttributes().attributes.find(a => a.name === "rgba") !== undefined;
+				if(hasRGBA){
+					pointcloud.material.activeAttributeName = "rgba";
+				} else {
+					pointcloud.material.activeAttributeName = "color";
+				}
+
+				viewer.scene.addPointCloud(pointcloud);
+				viewer.fitToScreen();
+
+				currentPointcloud = pointcloudInfo;
+				updateDropdownSelection();
+				
+				console.log('Successfully loaded pointcloud:', pointcloudInfo.name);
+			}).catch(error => {
+				console.error('Failed to load pointcloud:', error);
+			});
+		}
+
+		/**
+		 * Show pointcloud selection modal
+		 */
+		function showPointcloudModal() {
+			const modal = document.getElementById('pointcloud-modal');
+			const list = document.getElementById('pointcloud-list');
+			
+			// Clear existing items
+			list.innerHTML = '';
+			
+			// Populate with available pointclouds
+			availablePointclouds.forEach((pc, index) => {
+				const item = document.createElement('div');
+				item.className = 'pointcloud-item';
+				item.dataset.index = index;
+				
+				const formatNumber = (num) => {
+					if (num >= 1000000) {
+						return (num / 1000000).toFixed(1) + 'M';
+					} else if (num >= 1000) {
+						return (num / 1000).toFixed(1) + 'K';
+					}
+					return num.toString();
+				};
+
+				item.innerHTML = `
+					<div class="pointcloud-name">${pc.metadata.name}</div>
+					<div class="pointcloud-metadata">
+						<div class="metadata-item">
+							<span>Points:</span>
+							<span>${formatNumber(pc.metadata.totalPoints)}</span>
+						</div>
+					</div>
+				`;
+				
+				item.addEventListener('click', () => {
+					list.querySelectorAll('.pointcloud-item').forEach(i => i.classList.remove('selected'));
+					item.classList.add('selected');
+					selectedPointcloudIndex = index;
+				});
+				
+				list.appendChild(item);
+			});
+			
+			modal.classList.add('show');
+		}
+
+		/**
+		 * Hide pointcloud selection modal
+		 */
+		function hidePointcloudModal() {
+			const modal = document.getElementById('pointcloud-modal');
+			modal.classList.remove('show');
+			selectedPointcloudIndex = null;
+		}
+
+		/**
+		 * Update dropdown selection to reflect current pointcloud
+		 */
+		function updateDropdownSelection() {
+			const dropdown = document.getElementById('pointcloud-dropdown');
+			dropdown.querySelectorAll('.dropdown-item').forEach(item => {
+				item.classList.remove('active');
+			});
+			
+			if (currentPointcloud) {
+				const currentIndex = availablePointclouds.findIndex(pc => pc.name === currentPointcloud.name);
+				if (currentIndex >= 0) {
+					const item = dropdown.querySelector(`[data-index="${currentIndex}"]`);
+					if (item) {
+						item.classList.add('active');
+					}
+				}
+			}
+		}
+
+		/**
+		 * Populate pointcloud dropdown
+		 */
+		function populateDropdown() {
+			const dropdown = document.getElementById('pointcloud-dropdown');
+			dropdown.innerHTML = '';
+
+			availablePointclouds.forEach((pc, index) => {
+				const item = document.createElement('div');
+				item.className = 'dropdown-item';
+				item.dataset.index = index;
+				
+				const formatNumber = (num) => {
+					if (num >= 1000000) {
+						return (num / 1000000).toFixed(1) + 'M';
+					} else if (num >= 1000) {
+						return (num / 1000).toFixed(1) + 'K';
+					}
+					return num.toString();
+				};
+
+				item.innerHTML = `
+					<div class="dropdown-item-name">${pc.metadata.name}</div>
+					<div class="dropdown-item-info">${formatNumber(pc.metadata.totalPoints)} points</div>
+				`;
+				
+				item.addEventListener('click', () => {
+					loadPointcloud(pc);
+					hideDropdown();
+				});
+				
+				dropdown.appendChild(item);
+			});
+		}
+
+		/**
+		 * Show/hide dropdown
+		 */
+		function toggleDropdown() {
+			const dropdown = document.getElementById('pointcloud-dropdown');
+			dropdown.classList.toggle('show');
+		}
+
+		function hideDropdown() {
+			const dropdown = document.getElementById('pointcloud-dropdown');
+			dropdown.classList.remove('show');
+		}
+
+		// ===============================================
+		// THEME MANAGEMENT (DEFAULT TO DARK)
+		// ===============================================
 		
+		// Get theme preference from localStorage or default to dark
+		let isDarkMode = localStorage.getItem('potree-dark-mode') !== 'false';
 		
-
-		//Potree.loadPointCloud("C:/dev/pointclouds/ot_35120C7102A_1/cloud.js", "CA13", e => {
-		////Potree.loadPointCloud("../pointclouds/C/dev/pointclouds/test/cloud.js", "sigeom.sa", e => {
-		//	let scene = viewer.scene;
-		//	let pointcloud = e.pointcloud;
-		//	
-		//	let material = pointcloud.material;
-		//	material.size = 3;
-		//	material.pointSizeType = Potree.PointSizeType.FIXED;
-		//	material.pointColorType = Potree.PointColorType.SOURCE;
-		//	material.shape = Potree.PointShape.SQUARE;
-		//	
-		//	scene.addPointCloud(pointcloud);
-		//	
-		//	scene.view.position.set(693195.575, 3915628.878, 472.872);
-		//	scene.view.lookAt(693747.110, 3916033.332, 33.996);
-		//});
-
+		/**
+		 * Updates the theme throughout the application
+		 */
+		function updateTheme() {
+			const body = document.body;
+			const themeToggle = document.getElementById('theme-toggle');
+			
+			if (isDarkMode) {
+				body.setAttribute('data-theme', 'dark');
+				themeToggle.textContent = '☀️';
+				themeToggle.title = 'Switch to Light Mode';
+			} else {
+				body.removeAttribute('data-theme');
+				themeToggle.textContent = '🌙';
+				themeToggle.title = 'Switch to Dark Mode';
+			}
+			
+			// Persist theme preference
+			localStorage.setItem('potree-dark-mode', isDarkMode);
+		}
 		
-		// viewer.onGUILoaded(() => {
-		// 	let message = `
-		// 	Welcome to Potree Desktop.<br>
-		// 	<p>
-		// 	This portable version can be used to load <a href="https://github.com/potree/PotreeConverter", target="_blank"> converted point clouds</a>
-		// 	directly from disk. Just drag & drop a cloud.js file, or it's parent folder, into this window.
-		// 	</p>
+		// Initialize theme on page load
+		updateTheme();
+		
+		// Theme toggle event listener
+		document.getElementById('theme-toggle').addEventListener('click', () => {
+			isDarkMode = !isDarkMode;
+			updateTheme();
+		});
 
-		// 	<p>
-		// 	You can set up a default scene by modifying the index.html file in the potree desktop folder. 
-		// 	</p>
-		// 	`;
+		// Pointcloud toggle event listener - use modal instead of dropdown
+		document.getElementById('pointcloud-toggle').addEventListener('click', showPointcloudModal);
 
-		// 	//viewer.postMessage(message);
-		// 	viewer.postMessage(message, {duration: 15000});
-		// });
+		// Modal event listeners
+		document.getElementById('modal-cancel').addEventListener('click', hidePointcloudModal);
+		document.getElementById('modal-load').addEventListener('click', () => {
+			if (selectedPointcloudIndex !== null) {
+				loadPointcloud(availablePointclouds[selectedPointcloudIndex]);
+				hidePointcloudModal();
+			}
+		});
 
+		// Close dropdown when clicking outside
+		document.addEventListener('click', (e) => {
+			const selector = document.querySelector('.pointcloud-selector');
+			if (!selector.contains(e.target)) {
+				hideDropdown();
+			}
+		});
+
+		// ===============================================
+		// INITIALIZATION
+		// ===============================================
+		
+		// Scan for pointclouds on startup
+		scanPointclouds().then(pointclouds => {
+			availablePointclouds = pointclouds;
+			console.log(`Found ${pointclouds.length} pointclouds:`, pointclouds.map(pc => pc.name));
+
+			if (pointclouds.length === 0) {
+				console.log('No pointclouds found - ready for drag and drop');
+			} else if (pointclouds.length === 1) {
+				// Auto-load single pointcloud
+				loadPointcloud(pointclouds[0]);
+				console.log(`Auto-loaded single pointcloud: ${pointclouds[0].name}`);
+			} else {
+				// Show selector for multiple pointclouds
+				document.getElementById('pointcloud-toggle').style.display = 'flex';
+				showPointcloudModal();
+			}
+		});
+
+		// ===============================================
+		// TOOLBAR HTML - BUILT IMMEDIATELY
+		// ===============================================
+		
+		const elToolbar = $("#potree_toolbar");
+		
+		// Build the toolbar structure with all sections (following working pattern)
+		elToolbar.append(`
+			<!-- LOGO Section -->
+			<div class="toolbar-section" padding-left="36px" padding-right="36px">
+				<a href="http://smart-and-agile.de" target="_blank"><img width="48px"src="${Potree.resourcePath}/SmA/reiner.png"></a> 
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Attribute Control Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">View</div>
+				<div class="toolbar-controls">
+					<div class="action-btn" data-action="elevation" title="Show elevation data">
+						<img src="${Potree.resourcePath}/icons/profile.svg" alt="Elevation"/>
+						<div class="tooltip">Elevation</div>
+					</div>
+					<div class="action-btn active" data-action="rgb" title="Show RGB colors">
+						<img src="${Potree.resourcePath}/icons/rgb.svg" alt="RGB"/>
+						<div class="tooltip">RGB</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Views Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">VIEWS</div>
+				<div class="toolbar-controls" id="viewscontrol_sma">	</div>		
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Navigation Controls Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">NAVIGATION</div>
+				<div class="toolbar-controls" id="navigation_sma">	</div>	
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Measurement Tools Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">Measure</div>
+				<div class="toolbar-controls">
+					<div class="action-btn" data-action="measure-point" title="Measure single point">
+						<img src="${Potree.resourcePath}/icons/point.svg" alt="Point"/>
+						<div class="tooltip">Point</div>
+					</div>
+					<div class="action-btn" data-action="measure-distance" title="Measure distance">
+						<img src="${Potree.resourcePath}/icons/distance.svg" alt="Distance"/>
+						<div class="tooltip">Distance</div>
+					</div>
+					<div class="action-btn" data-action="measure-height" title="Measure height">
+						<img src="${Potree.resourcePath}/icons/height.svg" alt="Height"/>
+						<div class="tooltip">Height</div>
+					</div>
+					<div class="action-btn" data-action="measure-circle" title="Measure circle">
+						<img src="${Potree.resourcePath}/icons/circle.svg" alt="Circle"/>
+						<div class="tooltip">Circle</div>
+					</div>
+					<div class="action-btn" data-action="measure-removeall" title="Remove all Measurements">
+						<img src="${Potree.resourcePath}/icons/reset_tools.svg" alt="Remove"/>
+						<div class="tooltip">Clear</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Material Selection Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">Render Quality</div>
+				<div class="toolbar-controls">
+					<select id="splatQuality" class="toolbar-select" title="Render quality">
+						<option value="sq">Standard</option>
+						<option value="hq">High</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Point Budget Control Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">Density</div>
+				<div class="toolbar-controls">
+					<div class="slider-section">
+						<div id="lblPointBudget" class="budget-display">3.0M</div>
+						<div id="sldPointBudget"></div>
+					</div>
+				</div>
+			</div>
+		`);
+
+		// ===============================================
+		// INITIALIZE TOOLBAR CONTROLS IMMEDIATELY
+		// ===============================================
+		
+		// Initialize controls right after toolbar HTML is created (following working pattern)
+		initViews();
+		initNavigation();
+		initializeSplatQuality();
+
+		// ===============================================
+		// NAVIGATION CONTROL INITIALIZATION
+		// ===============================================
+
+		/**
+		 * Creates a navigation tool icon button
+		 * @param {string} iconPath - Path to the icon
+		 * @param {string} tooltip - Tooltip text
+		 * @param {function} onClick - Click handler function
+		 * @returns {jQuery} The created button element
+		 */
+		function createNavigationIcon(iconPath, tooltip, onClick) {
+			const btn = $(`
+				<div class="action-btn" title="${tooltip}">
+					<img src="${iconPath}" alt="${tooltip}"/>
+					<div class="tooltip">${tooltip}</div>
+				</div>
+			`);
+			
+			btn.click(onClick);
+			return btn;
+		}
+
+		/**
+		 * Initialize views controls
+		 */
+		function initViews() {
+			const elViewsControl = $('#viewscontrol_sma');
+			
+			// Left View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/left.svg",
+				"Left View",
+				() => { viewer.setLeftView(); }
+			));
+			
+			// Right View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/right.svg",
+				"Right View",
+				() => { viewer.setRightView(); }
+			));
+			
+			// Front View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/front.svg",
+				"Front View",
+				() => { viewer.setFrontView(); }
+			));
+			
+			// Back View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/back.svg",
+				"Back View",
+				() => { viewer.setBackView(); }
+			));
+			
+			// Top View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/top.svg",
+				"Top View",
+				() => { viewer.setTopView(); }
+			));
+			
+			// Bottom View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/bottom.svg",
+				"Bottom View",
+				() => { viewer.setBottomView(); }
+			));
+		}
+
+		/**
+		 * Initialize navigation controls
+		 */
+		function initNavigation() {
+			const elNavigation = $('#navigation_sma');
+			
+			// Earth Controls
+			elNavigation.append(createNavigationIcon(
+				Potree.resourcePath + '/icons/earth_controls_1.png',
+				'Earth Control',
+				() => { 
+					viewer.setControls(viewer.earthControls); 
+				}
+			));
+			
+			// Flight Controls
+			elNavigation.append(createNavigationIcon(
+				Potree.resourcePath + '/icons/fps_controls.svg',
+				'Flight Control',
+				() => {
+					viewer.setControls(viewer.fpControls);
+					viewer.fpControls.lockElevation = false;
+				}
+			));
+			
+			// Orbit Controls
+			elNavigation.append(createNavigationIcon(
+				Potree.resourcePath + '/icons/orbit_controls.svg',
+				'Orbit Control',
+				() => { 
+					viewer.setControls(viewer.orbitControls); 
+				}
+			));
+			
+			// Focus/Fit to Screen
+			elNavigation.append(createNavigationIcon(
+				Potree.resourcePath + '/icons/focus.svg',
+				'Fit to Screen',
+				() => { 
+					viewer.fitToScreen(); 
+				}
+			));
+			
+			// Camera Projection Selector
+			const elCameraProjection = $(`
+				<select id="camera_projection_options" class="toolbar-select" title="Camera Projection">
+					<option value="PERSPECTIVE">Perspective</option>
+					<option value="ORTHOGRAPHIC">Orthographic</option>
+				</select>
+			`);
+			
+			elNavigation.append(elCameraProjection);
+			
+			// Camera projection change handler
+			elCameraProjection.change((e) => {
+				const mode = e.target.value;
+				const splatQuality = $('#splatQuality');
+				
+				if (mode === 'PERSPECTIVE') {
+					viewer.setCameraMode(Potree.CameraMode.PERSPECTIVE);
+					// Enable high quality option in perspective mode
+					splatQuality.prop('disabled', false);
+					splatQuality.find('option[value="hq"]').prop('disabled', false);
+				} else if (mode === 'ORTHOGRAPHIC') {
+					viewer.setCameraMode(Potree.CameraMode.ORTHOGRAPHIC);
+					// Force standard quality in orthographic mode
+					splatQuality.val('sq');
+					viewer.useHQ = false;
+					// Disable high quality option
+					splatQuality.find('option[value="hq"]').prop('disabled', true);
+				}
+			});
+			
+			// Set initial camera mode
+			const currentMode = viewer.scene.cameraMode;
+			if (currentMode === Potree.CameraMode.PERSPECTIVE) {
+				elCameraProjection.val('PERSPECTIVE');
+			} else {
+				elCameraProjection.val('ORTHOGRAPHIC');
+			}
+		}
+
+		// ===============================================
+		// ATTRIBUTE CONTROL HANDLERS
+		// ===============================================
+		
+		/**
+		 * Handles elevation view activation
+		 */
+		elToolbar.find('.action-btn[data-action="elevation"]').click(function() {
+			// Clear measurement tool states
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			
+			// Update attribute button states
+			elToolbar.find('.action-btn[data-action="elevation"], .action-btn[data-action="rgb"]').removeClass('active');
+			$(this).addClass('active');
+			
+			// Apply elevation attribute to all point clouds
+			viewer.scene.pointclouds.forEach(pc => pc.material.activeAttributeName = "elevation");
+		});
+
+		/**
+		 * Handles RGB view activation
+		 */
+		elToolbar.find('.action-btn[data-action="rgb"]').click(function() {
+			// Clear measurement tool states
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			
+			// Update attribute button states
+			elToolbar.find('.action-btn[data-action="elevation"], .action-btn[data-action="rgb"]').removeClass('active');
+			$(this).addClass('active');
+			
+			// Apply RGB attribute to all point clouds
+			viewer.scene.pointclouds.forEach(pc => pc.material.activeAttributeName = "rgba");
+		});
+
+		// ===============================================
+		// MEASUREMENT TOOL HANDLERS
+		// ===============================================
+		
+		/**
+		 * Handles point measurement tool activation
+		 */
+		elToolbar.find('.action-btn[data-action="measure-point"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+			
+			viewer.measuringTool.startInsertion({
+				showDistances: false,
+				showAngles: false,
+				showCoordinates: true,
+				showArea: false,
+				closed: true,
+				maxMarkers: 1,
+				name: 'Point'
+			});
+		});
+
+		/**
+		 * distance measurement
+		 */
+		elToolbar.find('.action-btn[data-action="measure-distance"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+			
+			viewer.measuringTool.startInsertion({
+				showDistances: true,
+				showArea: false,
+				closed: false,
+				name: 'Distance'
+			});
+		});
+
+		 /**
+		 * height measurement
+		 */
+		 elToolbar.find('.action-btn[data-action="measure-height"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+			
+			viewer.measuringTool.startInsertion({
+				showHeight: true,
+				showDistances: false,
+				showArea: false,
+				closed: false,
+				maxMarkers: 2,
+				name: 'Height'
+			});
+		});
+
+		/**
+		 * circle measurement
+		 */
+		elToolbar.find('.action-btn[data-action="measure-circle"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+			
+			viewer.measuringTool.startInsertion({
+				showDistances: false,
+				showHeight: false,
+				showArea: false,
+				showCircle: true,
+				showEdges: false,
+				closed: false,
+				maxMarkers: 3,
+				name: 'Circle'
+			});
+		});
+
+		/**
+		 * clear all measurements
+		 */
+		elToolbar.find('.action-btn[data-action="measure-removeall"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+
+			viewer.scene.removeAllMeasurements(); 
+			
+			// Clear active state after a brief moment
+			setTimeout(() => {
+				$(this).removeClass('active');
+			}, 200);
+		});
+
+		// ===============================================
+		// SPLAT QUALITY SELECTION HANDLER
+		// ===============================================
+		/**
+		 * Handles splat quality dropdown changes
+		 */
+		$('#splatQuality').change(function() {
+			const selectedValue = $(this).val();
+			const cameraProjection = $('#camera_projection_options');
+			
+			// Prevent high quality in orthographic mode
+			if (selectedValue === "hq" && cameraProjection.val() === 'ORTHOGRAPHIC') {
+				// Reset to standard quality
+				$(this).val('sq');
+				viewer.useHQ = false;
+				return;
+			}
+			
+			// Apply quality setting to viewer
+			if (selectedValue === "sq") {
+				viewer.useHQ = false;
+			} else if (selectedValue === "hq") {
+				viewer.useHQ = true;
+			}
+		});
+
+		// ===============================================
+		// INITIALIZE SPLAT QUALITY ON LOAD
+		// ===============================================
+		/**
+		 * Set initial splat quality based on viewer state
+		 */
+		function initializeSplatQuality() {
+			const currentQuality = viewer.useHQ ? "hq" : "sq";
+			const splatQuality = $('#splatQuality');
+			const cameraProjection = $('#camera_projection_options');
+			
+			splatQuality.val(currentQuality);
+			
+			// Check if we're in orthographic mode and apply restrictions
+			if (cameraProjection.val() === 'ORTHOGRAPHIC') {
+				splatQuality.val('sq');
+				viewer.useHQ = false;
+				splatQuality.find('option[value="hq"]').prop('disabled', true);
+			} else {
+				splatQuality.find('option[value="hq"]').prop('disabled', false);
+			}
+		}
+
+		// ===============================================
+		// POINT BUDGET SLIDER
+		// ===============================================
+		
+		/**
+		 * Initialize the point budget slider with smooth movement
+		 */
+		$('#sldPointBudget').slider({
+			value: viewer.getPointBudget(),
+			min: 100_000,
+			max: 10_000_000,
+			step: 1_000, // Much smaller steps for smoother movement
+			slide: (event, ui) => { 
+				viewer.setPointBudget(ui.value); 
+			}
+		});
+
+		/**
+		 * Updates the point budget display
+		 */
+		const updateBudgetDisplay = () => {
+			const budget = (viewer.getPointBudget() / 1_000_000).toFixed(1) + "M";
+			$('#lblPointBudget').text(budget);
+		};
+
+		// Initialize display and listen for changes
+		updateBudgetDisplay();
+		viewer.addEventListener("point_budget_changed", updateBudgetDisplay);
+
+		// ===============================================
+		// BACKUP INITIALIZATION (if immediate doesn't work)
+		// ===============================================
+
+		// Wait for the viewer and GUI to be fully loaded (backup)
+		viewer.addEventListener('scene_changed', () => {
+			// Re-initialize if controls weren't created yet
+			if ($('#navigation_sma').children().length === 0) {
+				initViews();
+				initNavigation();
+			}
+		});
+
+		// Final fallback with shorter delay
+		$(document).ready(() => {
+			setTimeout(() => {
+				// Only initialize if controls don't exist yet
+				if ($('#navigation_sma').children().length === 0) {
+					initViews();
+					initNavigation();
+					initializeSplatQuality();
+				}
+			}, 100); // Much shorter delay
+		});
+
+		// Error handling
 		window.addEventListener('error', (e) => {
-			//console.log(e);
-			viewer.postError(e.error.message);
+			console.error('Error:', e.error);
 		});
 
-		
-		
+		console.log('Potree Desktop Viewer initialized successfully');
 	</script>
-
-
-	</body>
+	
+</body>
 </html>

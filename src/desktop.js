@@ -427,21 +427,12 @@ export function dragLeave(e){
 }
 
 export async function dropHandler(event){
-	// console.log(event);
 	event.preventDefault();
 	event.stopPropagation();
 
 	hideDropzones();
 
-	let u = event.clientX / document.body.clientWidth;
-
-	console.log(u);
-
 	const cloudJsFiles = [];
-	const lasLazFiles = [];
-
-	let suggestedDirectory = null;
-	let suggestedName = null;
 
 	for(let i = 0; i < event.dataTransfer.items.length; i++){
 		let item = event.dataTransfer.items[i];
@@ -453,82 +444,37 @@ export async function dropHandler(event){
 		let file = item.getAsFile();
 		let path = file.path;
 
+		if (typeof require === 'undefined') {
+			console.error('File system access not available - running in browser mode');
+			continue;
+		}
+
 		const fs = require("fs");
 		const fsp = fs.promises;
 		const np = require('path');
 
-		const whitelist = [".las", ".laz"];
-
 		let isFile = fs.lstatSync(path).isFile();
-		const isJson5 = file.name.toLowerCase().endsWith(".json5");
 
-		if(isJson5){
-			try{
-
-				const text = await file.text();
-				const json = JSON5.parse(text);
-
-				if(json.type === "Potree"){
-					Potree.loadProject(viewer, json);
-				}
-			}catch(e){
-				console.error("failed to parse the dropped file as JSON");
-				console.error(e);
-			}
-		}else if(isFile && path.indexOf("cloud.js") >= 0){
+		if(isFile && path.indexOf("cloud.js") >= 0){
 			cloudJsFiles.push(file.path);
 		}else if(isFile && path.indexOf("metadata.json") >= 0){
 			cloudJsFiles.push(file.path);
-		}else if(isFile){
-			const extension = np.extname(path).toLowerCase();
-
-			if(whitelist.includes(extension)){
-				lasLazFiles.push(file.path);
-
-				if(suggestedDirectory == null){
-					suggestedDirectory = np.normalize(`${path}/..`);
-					suggestedName = np.basename(path, np.extname(path)) + "_converted";
-				}
-			}
 		}else if(fs.lstatSync(path).isDirectory()){
-			// handle directory
-
-			console.log("start readdir!");
+			// handle directory - look for cloud.js and metadata.json files
+			console.log("Processing directory:", path);
 			const files = await fsp.readdir(path);
 
-			console.log("readdir done!");
-
 			for(const file of files){
-				const extension = np.extname(file).toLowerCase();
-
-				if(whitelist.includes(extension)){
-					lasLazFiles.push(`${path}/${file}`);
-
-					if(suggestedDirectory == null){
-						suggestedDirectory = np.normalize(`${path}/..`);
-						suggestedName = np.basename(path, np.extname(path)) + "_converted";
-					}
-
-				}else if(file.toLowerCase().endsWith("cloud.js")){
+				if(file.toLowerCase().endsWith("cloud.js")){
 					cloudJsFiles.push(`${path}/${file}`);
 				}else if(file.toLowerCase().endsWith("metadata.json")){
 					cloudJsFiles.push(`${path}/${file}`);
 				}
-
-			};
-
-			// lasLazFiles.push(path);
-
+			}
 		}
 	}
 
-	// console.log(cloudJsFiles);
-	// console.log(lasLazFiles);
-
-	if(lasLazFiles.length > 0){
-		doConversion(lasLazFiles, suggestedDirectory, suggestedName);
-	}
-
+	// Load found point cloud files
 	for(const cloudjs of cloudJsFiles){
 		loadDroppedPointcloud(cloudjs);
 	}

@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+	<title>smart & agile viewer</title>
+
+	<!-- External Dependencies -->
+	<link rel="stylesheet" type="text/css" href="../build/potree/potree.css">
+	<link rel="stylesheet" type="text/css" href="../libs/jquery-ui/jquery-ui.min.css">
+	<link rel="stylesheet" type="text/css" href="../libs/openlayers3/ol.css">
+	<link rel="stylesheet" type="text/css" href="../libs/spectrum/spectrum.css">
+	<link rel="stylesheet" type="text/css" href="../libs/jstree/themes/mixed/style.css">
+	<link rel="stylesheet" type="text/css" href="toolbar_sma.css">
+
+</head>
+
+<body>
+	<!-- ===================================================================
+	     JAVASCRIPT DEPENDENCIES
+	     =================================================================== -->
+	<script src="../libs/jquery/jquery-3.1.1.min.js"></script>
+	<script src="../libs/spectrum/spectrum.js"></script>
+	<script src="../libs/jquery-ui/jquery-ui.min.js"></script>
+	<script src="../libs/other/BinaryHeap.js"></script>
+	<script src="../libs/tween/tween.min.js"></script>
+	<script src="../libs/d3/d3.js"></script>
+	<script src="../libs/proj4/proj4.js"></script>
+	<script src="../libs/openlayers3/ol.js"></script>
+	<script src="../libs/i18next/i18next.js"></script>
+	<script src="../libs/jstree/jstree.js"></script>
+	<script src="../build/potree/potree.js"></script>
+	<script src="../libs/plasio/js/laslaz.js"></script>
+	<script src='../libs/sql.js/sql-wasm.js'></script>
+	<script src='../libs/geopackage/geopackage.js'></script>
+
+	<!-- ===================================================================
+	     HTML STRUCTURE
+	     =================================================================== -->
+	<div class="potree_container" style="position: absolute; width: 100%; height: 100%; left: 0px; top: 0px; ">
+		<div id="potree_render_area">
+			<!-- Main Toolbar -->
+			<div id="potree_toolbar">
+				<!-- populated with function -->
+			</div>
+			
+			<!-- Darkmode and Menu Toolbar -->
+			<div id="potree_control_toolbar">
+				<div class="control-btn" id="sidebar-toggle" title="Toggle Sidebar">
+					<div class="hamburger">
+						<div class="hamburger-line"></div>
+						<div class="hamburger-line"></div>
+						<div class="hamburger-line"></div>
+					</div>
+				</div>
+				<div class="control-btn" id="theme-toggle" title="Toggle Theme">
+					🌙
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	<!-- ===================================================================
+	     POTREE INITIALIZATION
+	     =================================================================== -->
+	<script type="module">
+		import * as THREE from "../libs/three.js/build/three.module.js";
+		import { loadPointCloudMetadata } from "../src/utils/sma_ParseMetadata.js";
+		
+		// Initialize Potree Viewer
+		window.viewer = new Potree.Viewer(document.getElementById("potree_render_area"));
+		
+		// Configure viewer settings
+		viewer.setEDLEnabled(false);
+		viewer.setFOV(60);
+		viewer.setPointBudget(3_000_000);
+		viewer.loadSettingsFromURL();
+		viewer.setBackground("black");
+		
+		// Load GUI components
+		viewer.loadGUI(() => {
+			viewer.setLanguage('de');
+			$("#menu_tools").next().show();
+			
+			// Hide default Potree sidebar
+			const sidebar = document.getElementById('potree_sidebar_container');
+			if (sidebar) {
+				sidebar.style.display = 'none';
+			}
+			
+			// Hide any default sidebar toggle buttons
+			$('.sidebar-toggle, .potree-sidebar-toggle').hide();
+		});
+
+
+	// Extract common point cloud configuration logic
+	function configurePointCloud(pointcloud, elevationRange, pointBudget = null, totalPoints = null) {
+		const material = pointcloud.material;
+		material.size = 1;
+		material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+		material.shape = Potree.PointShape.CIRCLE;
+		material.elevationRange = elevationRange;
+		
+		// Set optimal point budget if provided
+		if (pointBudget) {
+			viewer.setPointBudget(pointBudget);
+			console.log(`Set optimal point budget: ${(pointBudget / 1_000_000).toFixed(1)}M points`);
+			
+			// Update slider with the new budget
+			const slider = $('#sldPointBudget');
+			if (slider.length > 0) {
+				slider.slider('value', pointBudget);
+			}
+		}
+
+		// Update slider max value based on total points
+		if (totalPoints) {
+        const maxBudget = Math.min(10_000_000, totalPoints);
+        const slider = $('#sldPointBudget');
+        if (slider.length > 0) {
+            slider.slider('option', 'max', maxBudget);
+            console.log(`Updated slider max to: ${(maxBudget / 1_000_000).toFixed(1)}M points`);
+        }
+    }
+
+		// Add to scene and set camera view
+		viewer.scene.addPointCloud(pointcloud);
+		viewer.fitToScreen();
+	}
+
+	// Load metadata and calculate elevation range dynamically
+	loadPointCloudMetadata("../pointclouds/veilchen/metadata.json")
+		.then(metadataInfo => {
+			//extract all metadata info
+			console.log('Point Cloud Info:', metadataInfo);
+			const { elevationRange, optimalPointBudget, totalPoints } = metadataInfo;
+			
+			// Load and configure point cloud
+			Potree.loadPointCloud("../pointclouds/veilchen/metadata.json", metadataInfo.name, e => {
+				configurePointCloud(e.pointcloud, elevationRange, optimalPointBudget, totalPoints);
+			});
+		})
+		.catch(error => {
+			console.error('Failed to load metadata:', error);
+			// Fallback to default elevation range
+			const elevationRange = [30, 80];
+			const defaultBudget = 1_000_000;
+			const defaultTotalPoints = 5_000_000;
+			
+			Potree.loadPointCloud("../pointclouds/veilchen/metadata.json", "Punktwolke", e => {
+				configurePointCloud(e.pointcloud, elevationRange, defaultBudget, defaultTotalPoints);
+			});
+		});
+		
+		// ===============================================
+		// THEME MANAGEMENT
+		// ===============================================
+		
+		// Get theme preference from localStorage or default to light
+		let isDarkMode = localStorage.getItem('potree-dark-mode') === 'true';
+		
+		/**
+		 * Updates the theme throughout the application
+		 */
+		function updateTheme() {
+			const body = document.body;
+			const themeToggle = document.getElementById('theme-toggle');
+			
+			if (isDarkMode) {
+				body.setAttribute('data-theme', 'dark');
+				themeToggle.textContent = '☀️';
+				themeToggle.title = 'Switch to Light Mode';
+			} else {
+				body.removeAttribute('data-theme');
+				themeToggle.textContent = '🌙';
+				themeToggle.title = 'Switch to Dark Mode';
+			}
+			
+			// Persist theme preference
+			localStorage.setItem('potree-dark-mode', isDarkMode);
+		}
+		
+		// Initialize theme on page load
+		updateTheme();
+		
+		// Theme toggle event listener
+		document.getElementById('theme-toggle').addEventListener('click', () => {
+			isDarkMode = !isDarkMode;
+			updateTheme();
+		});
+
+		// Sidebar toggle event listener (disabled - no sidebar)
+		document.getElementById('sidebar-toggle').addEventListener('click', () => {
+			// Sidebar functionality disabled
+			console.log('Sidebar toggle clicked - but sidebar is disabled');
+		});
+
+		// ===============================================
+		// TOOLBAR HTML
+		// ===============================================
+		
+		const elToolbar = $("#potree_toolbar");
+		
+		// Build the toolbar structure with all sections
+		elToolbar.append(`
+			<!-- LOGO Section -->
+			<div class="toolbar-section" padding-left="36px" padding-right="36px">
+				<a href="http://smart-and-agile.de" target="_blank"><img width="48px"src="../resources/SmA/reiner.png"></a> 
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+
+			<!-- Attribute Control Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">View</div>
+				<div class="toolbar-controls">
+					<div class="action-btn" data-action="elevation" title="Show elevation data">
+						<img src="${Potree.resourcePath}/icons/profile.svg" alt="Elevation"/>
+						<div class="tooltip">Elevation</div>
+					</div>
+					<div class="action-btn active" data-action="rgb" title="Show RGB colors">
+						<img src="${Potree.resourcePath}/icons/rgb.svg" alt="RGB"/>
+						<div class="tooltip">RGB</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Views Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">VIEWS</div>
+				<div class="toolbar-controls" id="viewscontrol_sma">	</div>		
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Navigation Controls Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">NAVIGATION</div>
+				<div class="toolbar-controls" id="navigation_sma">	</div>	
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Measurement Tools Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">Measure</div>
+				<div class="toolbar-controls">
+					<div class="action-btn" data-action="measure-point" title="Measure single point">
+						<img src="${Potree.resourcePath}/icons/point.svg" alt="Point"/>
+						<div class="tooltip">Point</div>
+					</div>
+					<div class="action-btn" data-action="measure-distance" title="Measure distance">
+						<img src="${Potree.resourcePath}/icons/distance.svg" alt="Distance"/>
+						<div class="tooltip">Distance</div>
+					</div>
+					<div class="action-btn" data-action="measure-height" title="Measure height">
+						<img src="${Potree.resourcePath}/icons/height.svg" alt="Height"/>
+						<div class="tooltip">Height</div>
+					</div>
+					<div class="action-btn" data-action="measure-circle" title="Measure circle">
+						<img src="${Potree.resourcePath}/icons/circle.svg" alt="Circle"/>
+						<div class="tooltip">Circle</div>
+					</div>
+					<div class="action-btn" data-action="measure-removeall" title="Remove all Measurements">
+						<img src="${Potree.resourcePath}/icons/reset_tools.svg" alt="Remove"/>
+						<div class="tooltip">Clear</div>
+					</div>
+					</div>
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Material Selection Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">Render Quality</div>
+				<div class="toolbar-controls">
+					<select id="splatQuality" class="toolbar-select" title="squat render quality">
+						<option value="sq">Standard</option>
+						<option value="hq">High</option>
+					</select>
+				</div>
+			</div>
+
+			<div class="toolbar-separator"></div>
+
+			<!-- Point / Squat Control Section -->
+			<div class="toolbar-section">
+				<div class="toolbar-label">Density</div>
+				<div class="toolbar-controls">
+					<div class="slider-section">
+						<div id="lblPointBudget" class="budget-display">1.0M</div>
+						<div id="sldPointBudget"></div>
+					</div>
+				</div>
+			</div>
+		`);
+
+		// ===============================================
+		// INITIALIZE TOOLBAR CONTROLS IMMEDIATELY
+		// ===============================================
+		
+		// Initialize controls right after toolbar HTML is created
+		initViews();
+		initNavigation();
+		initializeSplatQuality();
+
+		// ===============================================
+		// NAVIGATION CONTROL INITIALIZATION
+		// ===============================================
+
+		/**
+		 * Creates a navigation tool icon button
+		 * @param {string} iconPath - Path to the icon
+		 * @param {string} tooltip - Tooltip text
+		 * @param {function} onClick - Click handler function
+		 * @returns {jQuery} The created button element
+		 */
+		function createNavigationIcon(iconPath, tooltip, onClick) {
+			const btn = $(`
+				<div class="action-btn" title="${tooltip}">
+					<img src="${iconPath}" alt="${tooltip}"/>
+					<div class="tooltip">${tooltip}</div>
+				</div>
+			`);
+			
+			btn.click(onClick);
+			return btn;
+		}
+
+		/**
+		 * Initialize views controls
+		 */
+		function initViews() {
+			const elViewsControl = $('#viewscontrol_sma');
+			
+			// Left View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/left.svg",
+				"Left View",
+				() => { viewer.setLeftView(); }
+			));
+			
+			// Right View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/right.svg",
+				"Right View",
+				() => { viewer.setRightView(); }
+			));
+			
+			// Front View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/front.svg",
+				"Front View",
+				() => { viewer.setFrontView(); }
+			));
+			
+			// Back View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/back.svg",
+				"Back View",
+				() => { viewer.setBackView(); }
+			));
+			
+			// Top View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/top.svg",
+				"Top View",
+				() => { viewer.setTopView(); }
+			));
+			
+			// Bottom View
+			elViewsControl.append(createNavigationIcon(
+				Potree.resourcePath + "/icons/bottom.svg",
+				"Bottom View",
+				() => { viewer.setBottomView(); }
+			));
+		}
+
+		/**
+		 * Initialize navigation controls
+		 */
+		function initNavigation() {
+			const elNavigation = $('#navigation_sma');
+			
+			// Earth Controls
+			elNavigation.append(createNavigationIcon(
+				Potree.resourcePath + '/icons/earth_controls_1.png',
+				'Earth Control',
+				() => { 
+					viewer.setControls(viewer.earthControls); 
+				}
+			));
+			
+			// Flight Controls
+			elNavigation.append(createNavigationIcon(
+				Potree.resourcePath + '/icons/fps_controls.svg',
+				'Flight Control',
+				() => {
+					viewer.setControls(viewer.fpControls);
+					viewer.fpControls.lockElevation = false;
+				}
+			));
+			
+			// Orbit Controls
+			elNavigation.append(createNavigationIcon(
+				Potree.resourcePath + '/icons/orbit_controls.svg',
+				'Orbit Control',
+				() => { 
+					viewer.setControls(viewer.orbitControls); 
+				}
+			));
+			
+			// Focus/Fit to Screen
+			elNavigation.append(createNavigationIcon(
+				Potree.resourcePath + '/icons/focus.svg',
+				'Fit to Screen',
+				() => { 
+					viewer.fitToScreen(); 
+				}
+			));
+			
+			// Camera Projection Selector
+			const elCameraProjection = $(`
+				<select id="camera_projection_options" class="toolbar-select" title="Camera Projection">
+					<option value="PERSPECTIVE">Perspective</option>
+					<option value="ORTHOGRAPHIC">Orthographic</option>
+				</select>
+			`);
+			
+			elNavigation.append(elCameraProjection);
+			
+			// Camera projection change handler
+			elCameraProjection.change((e) => {
+				const mode = e.target.value;
+				const splatQuality = $('#splatQuality');
+				
+				if (mode === 'PERSPECTIVE') {
+					viewer.setCameraMode(Potree.CameraMode.PERSPECTIVE);
+					// Enable high quality option in perspective mode
+					splatQuality.prop('disabled', false);
+					splatQuality.find('option[value="hq"]').prop('disabled', false);
+				} else if (mode === 'ORTHOGRAPHIC') {
+					viewer.setCameraMode(Potree.CameraMode.ORTHOGRAPHIC);
+					// Force standard quality in orthographic mode
+					splatQuality.val('sq');
+					viewer.useHQ = false;
+					// Disable high quality option
+					splatQuality.find('option[value="hq"]').prop('disabled', true);
+				}
+			});
+			
+			// Set initial camera mode
+			const currentMode = viewer.scene.cameraMode;
+			if (currentMode === Potree.CameraMode.PERSPECTIVE) {
+				elCameraProjection.val('PERSPECTIVE');
+			} else {
+				elCameraProjection.val('ORTHOGRAPHIC');
+			}
+		}
+
+		// ===============================================
+		// ATTRIBUTE CONTROL HANDLERS
+		// ===============================================
+		
+		/**
+		 * Handles elevation view activation
+		 */
+		elToolbar.find('.action-btn[data-action="elevation"]').click(function() {
+			// Clear measurement tool states
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			
+			// Update attribute button states
+			elToolbar.find('.action-btn[data-action="elevation"], .action-btn[data-action="rgb"]').removeClass('active');
+			$(this).addClass('active');
+			
+			// Apply elevation attribute to all point clouds
+			viewer.scene.pointclouds.forEach(pc => pc.material.activeAttributeName = "elevation");
+		});
+
+		/**
+		 * Handles RGB view activation
+		 */
+		elToolbar.find('.action-btn[data-action="rgb"]').click(function() {
+			// Clear measurement tool states
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			
+			// Update attribute button states
+			elToolbar.find('.action-btn[data-action="elevation"], .action-btn[data-action="rgb"]').removeClass('active');
+			$(this).addClass('active');
+			
+			// Apply RGB attribute to all point clouds
+			viewer.scene.pointclouds.forEach(pc => pc.material.activeAttributeName = "rgba");
+		});
+
+		// ===============================================
+		// MEASUREMENT TOOL HANDLERS
+		// ===============================================
+		
+		/**
+		 * Handles point measurement tool activation
+		 */
+		elToolbar.find('.action-btn[data-action="measure-point"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+			
+			viewer.measuringTool.startInsertion({
+				showDistances: false,
+				showAngles: false,
+				showCoordinates: true,
+				showArea: false,
+				closed: true,
+				maxMarkers: 1,
+				name: 'Point'
+			});
+		});
+
+		/**
+		 * distance measurement
+		 */
+		elToolbar.find('.action-btn[data-action="measure-distance"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+			
+			viewer.measuringTool.startInsertion({
+				showDistances: true,
+				showArea: false,
+				closed: false,
+				name: 'Distance'
+			});
+		});
+
+		 /**
+		 * height measurement
+		 */
+		 elToolbar.find('.action-btn[data-action="measure-height"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+			
+			viewer.measuringTool.startInsertion({
+				showHeight: true,
+				showDistances: false,
+				showArea: false,
+				closed: false,
+				maxMarkers: 2,
+				name: 'Height'
+			});
+		});
+
+		/**
+		 * circle measurement
+		 */
+		elToolbar.find('.action-btn[data-action="measure-circle"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+			
+			viewer.measuringTool.startInsertion({
+				showDistances: false,
+				showHeight: false,
+				showArea: false,
+				showCircle: true,
+				showEdges: false,
+				closed: false,
+				maxMarkers: 3,
+				name: 'Circle'
+			});
+		});
+
+		/**
+		 * clear all measurements
+		 */
+		elToolbar.find('.action-btn[data-action="measure-removeall"]').click(function() {
+			elToolbar.find('.action-btn[data-action^="measure-"]').removeClass('active');
+			$(this).addClass('active');
+
+			viewer.scene.removeAllMeasurements(); 
+			
+			// Clear active state after a brief moment
+			setTimeout(() => {
+				$(this).removeClass('active');
+			}, 200);
+		});
+
+		// ===============================================
+		// SPLAT QUALITY SELECTION HANDLER
+		// ===============================================
+		/**
+		 * Handles splat quality dropdown changes
+		 */
+		$('#splatQuality').change(function() {
+			const selectedValue = $(this).val();
+			const cameraProjection = $('#camera_projection_options');
+			
+			// Prevent high quality in orthographic mode
+			if (selectedValue === "hq" && cameraProjection.val() === 'ORTHOGRAPHIC') {
+				// Reset to standard quality
+				$(this).val('sq');
+				viewer.useHQ = false;
+				return;
+			}
+			
+			// Apply quality setting to viewer
+			if (selectedValue === "sq") {
+				viewer.useHQ = false;
+			} else if (selectedValue === "hq") {
+				viewer.useHQ = true;
+			}
+		});
+
+		// ===============================================
+		// INITIALIZE SPLAT QUALITY ON LOAD
+		// ===============================================
+		/**
+		 * Set initial splat quality based on viewer state
+		 */
+		function initializeSplatQuality() {
+			const currentQuality = viewer.useHQ ? "hq" : "sq";
+			const splatQuality = $('#splatQuality');
+			const cameraProjection = $('#camera_projection_options');
+			
+			splatQuality.val(currentQuality);
+			
+			// Check if we're in orthographic mode and apply restrictions
+			if (cameraProjection.val() === 'ORTHOGRAPHIC') {
+				splatQuality.val('sq');
+				viewer.useHQ = false;
+				splatQuality.find('option[value="hq"]').prop('disabled', true);
+			} else {
+				splatQuality.find('option[value="hq"]').prop('disabled', false);
+			}
+		}
+
+		// ===============================================
+		// POINT BUDGET SLIDER
+		// ===============================================
+		
+		/**
+		 * Initialize the point budget slider with smooth movement
+		 */
+		$('#sldPointBudget').slider({
+			value: viewer.getPointBudget(),
+			min: 100_000,
+			max: 10_000_000,
+			step: 1_000, // Much smaller steps for smoother movement
+			slide: (event, ui) => { 
+				viewer.setPointBudget(ui.value); 
+			}
+		});
+
+		/**
+		 * Updates the point budget display
+		 */
+		const updateBudgetDisplay = () => {
+			const budget = (viewer.getPointBudget() / 1_000_000).toFixed(1) + "M";
+			$('#lblPointBudget').text(budget);
+		};
+
+		// Initialize display and listen for changes
+		updateBudgetDisplay();
+		viewer.addEventListener("point_budget_changed", updateBudgetDisplay);
+
+		// ===============================================
+		// BACKUP INITIALIZATION (if immediate doesn't work)
+		// ===============================================
+
+		// Wait for the viewer and GUI to be fully loaded (backup)
+		viewer.addEventListener('scene_changed', () => {
+			// Re-initialize if controls weren't created yet
+			if ($('#navigation_sma').children().length === 0) {
+				initViews();
+				initNavigation();
+			}
+		});
+
+		// Final fallback with shorter delay
+		$(document).ready(() => {
+			setTimeout(() => {
+				// Only initialize if controls don't exist yet
+				if ($('#navigation_sma').children().length === 0) {
+					initViews();
+					initNavigation();
+					initializeSplatQuality();
+				}
+			}, 100); // Much shorter delay
+		});
+	</script>
+	
+</body>
+</html>
