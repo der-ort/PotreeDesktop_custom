@@ -16,8 +16,8 @@ function createWindow () {
 	// Create the browser window.
 	mainWindow = new BrowserWindow({
 		autoHideMenuBar: true,
-		width: 1280, 
-		height: 1024,
+		width: 1920, 
+		height: 1080,
 		webPreferences: {
 			nodeIntegration: true,
 			backgroundThrottling: false,
